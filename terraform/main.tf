@@ -549,97 +549,99 @@ resource "kubernetes_secret" "tls_secret" {
 
 
 resource "helm_release" "backstage" {
-  count = local.build_backstage ? 1 : 0
-  depends_on = [ kubernetes_secret.tls_secret ]
+  count      = local.build_backstage ? 1 : 0
+  depends_on = [kubernetes_secret.tls_secret]
+
   name       = "backstage"
   repository = "oci://oowcontainerimages.azurecr.io/helm"
   chart      = "backstagechart"
   version    = "0.1.0"
 
-  set = [
-    {
-      name  = "image.repository"
-      value = "oowcontainerimages.azurecr.io/backstage"
-    },
-    {
-      name  = "image.tag"
-      value = "v1"
-    },
-    {
-      name  = "env.K8S_CLUSTER_NAME"
-      value = module.aks.aks_name
-    },
-    {
-      name  = "env.K8S_CLUSTER_URL"
-      value = "https://${module.aks.aks_name}"
-    },
-    {
-      name  = "env.K8S_SERVICE_ACCOUNT_TOKEN"
-      value = kubernetes_secret.backstage_service_account_secret[count.index].data.token
-    },
-    {
-      name  = "env.GITHUB_TOKEN"
-      value = local.github_token
-    },
-    {
-      name  = "env.GITOPS_REPO"
-      value = local.gitops_addons_url
-    },
-    {
-      name  = "service.type"
-      value = "LoadBalancer"
-    },
-    {
-      name  = "service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
-      value = module.aks.node_resource_group
-    },
-    {
-      name  = "service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-ipv4"
-      value = azurerm_public_ip.backstage_public_ip[count.index].ip_address
-    },
-    {
-      name  = "env.BASE_URL"
-      value = "https://${azurerm_public_ip.backstage_public_ip[count.index].ip_address}"
-    },
-    {
-      name  = "env.POSTGRES_HOST"
-      value = azurerm_postgresql_flexible_server.backstagedbserver[count.index].fqdn
-    },
-    {
-      name  = "env.POSTGRES_PORT"
-      value = "5432"
-    },
-    {
-      name  = "env.POSTGRES_USER"
-      value = azurerm_postgresql_flexible_server.backstagedbserver[count.index].administrator_login
-    },
-    {
-      name  = "env.POSTGRES_PASSWORD"
-      value = azurerm_postgresql_flexible_server.backstagedbserver[count.index].administrator_password
-    },
-    {
-      name  = "env.POSTGRES_DB"
-      value = azurerm_postgresql_flexible_server_database.backstage_plugin_catalog[count.index].name
-    },
-    {
-      name  = "env.AZURE_CLIENT_ID"
-      value = azuread_application.backstage-app[count.index].client_id
-    },
-    {
-      name  = "env.AZURE_CLIENT_SECRET"
-      value = azuread_service_principal_password.backstage-sp-password[count.index].value
-    },
-    {
-      name  = "env.AZURE_TENANT_ID"
-      value = data.azurerm_client_config.current.tenant_id
-    },
-    {
-      name  = "podAnnotations.backstage\\.io/kubernetes-id"
-      value = "${module.aks.aks_name}-component"
-    },
-    {
-      name  = "labels.kubernetesId"
-      value = "${module.aks.aks_name}-component"
-    }
-  ]
+  # --- non-secret values ---
+  set {
+    name  = "image.repository"
+    value = "oowcontainerimages.azurecr.io/backstage"
+  }
+  set {
+    name  = "image.tag"
+    value = "v1"
+  }
+  set {
+    name  = "env.K8S_CLUSTER_NAME"
+    value = module.aks.aks_name
+  }
+  set {
+    name  = "env.K8S_CLUSTER_URL"
+    value = "https://${module.aks.aks_name}"
+  }
+  set {
+    name  = "env.GITOPS_REPO"
+    value = local.gitops_addons_url
+  }
+  set {
+    name  = "service.type"
+    value = "LoadBalancer"
+  }
+  set {
+    name  = "service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
+    value = module.aks.node_resource_group
+  }
+  set {
+    name  = "service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-ipv4"
+    value = azurerm_public_ip.backstage_public_ip[count.index].ip_address
+  }
+  set {
+    name  = "env.BASE_URL"
+    value = "https://${azurerm_public_ip.backstage_public_ip[count.index].ip_address}"
+  }
+  set {
+    name  = "env.POSTGRES_HOST"
+    value = azurerm_postgresql_flexible_server.backstagedbserver[count.index].fqdn
+  }
+  set {
+    name  = "env.POSTGRES_PORT"
+    value = "5432"
+  }
+  set {
+    name  = "env.POSTGRES_USER"
+    value = azurerm_postgresql_flexible_server.backstagedbserver[count.index].administrator_login
+  }
+  set {
+    name  = "env.POSTGRES_DB"
+    value = azurerm_postgresql_flexible_server_database.backstage_plugin_catalog[count.index].name
+  }
+  set {
+    name  = "env.AZURE_CLIENT_ID"
+    value = azuread_application.backstage-app[count.index].client_id
+  }
+  set {
+    name  = "env.AZURE_TENANT_ID"
+    value = data.azurerm_client_config.current.tenant_id
+  }
+  set {
+    name  = "podAnnotations.backstage\\.io/kubernetes-id"
+    value = "${module.aks.aks_name}-component"
+  }
+  set {
+    name  = "labels.kubernetesId"
+    value = "${module.aks.aks_name}-component"
+  }
+
+  # --- secrets as set_sensitive ---
+  set_sensitive {
+    name  = "env.K8S_SERVICE_ACCOUNT_TOKEN"
+    value = kubernetes_secret.backstage_service_account_secret[count.index].data.token
+  }
+  set_sensitive {
+    name  = "env.GITHUB_TOKEN"
+    value = local.github_token
+  }
+  set_sensitive {
+    name  = "env.POSTGRES_PASSWORD"
+    value = azurerm_postgresql_flexible_server.backstagedbserver[count.index].administrator_password
+  }
+  set_sensitive {
+    name  = "env.AZURE_CLIENT_SECRET"
+    value = azuread_service_principal_password.backstage-sp-password[count.index].value
+  }
 }
