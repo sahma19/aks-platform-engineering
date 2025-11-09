@@ -18,11 +18,7 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      # Option 1: Pin to v2.x until gitops_bridge_bootstrap module is updated
-      version = "~> 2.17, < 3.0"
-
-      # Option 2: Use v3.x if module has been updated (uncomment and remove above)
-      # version = "~> 3.0"
+      version = ">= 3.1.0"
     }
   }
   required_version = ">= 1.1.0"
@@ -51,24 +47,10 @@ provider "kubernetes" {
   config_path = local_file.kubeconfig.filename
 }
 
-# Helm provider configuration
-# Updated syntax for v3+ (if using helm v3.x)
 provider "helm" {
   kubernetes = {
     config_path = local_file.kubeconfig.filename
   }
-
-  # Optional: Enable experimental features
-  # experiments = {
-  #   manifest = true
-  # }
 }
-
-# Note: If you need to use v2.x syntax, use:
-# provider "helm" {
-#   kubernetes {
-#     config_path = local_file.kubeconfig.filename
-#   }
-# }
 
 provider "random" {}
