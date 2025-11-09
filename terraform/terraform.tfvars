@@ -1,0 +1,25 @@
+# Sample tfvars - rename to terraform.tfvars to use
+
+# Azure region
+location = "westeurope"
+
+# Kubernetes version
+kubernetes_version = null # Defaults to latest
+
+# GitOps Addons configuration
+gitops_addons_org      = "https://github.com/sahma19"
+gitops_addons_repo     = "aks-platform-engineering"
+gitops_addons_basepath = "gitops/"
+gitops_addons_path     = "bootstrap/control-plane/addons"
+gitops_addons_revision = "main"
+
+# Agents size
+agents_size = "Standard_D2s_v3"
+
+# Addons configuration
+addons = {
+  enable_kyverno                         = false
+}
+
+# Resource group name
+resource_group_name = "aks-gitops"

@@ -1,0 +1,96 @@
+﻿name: Deploy AKS Platform Engineering
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+jobs:
+  terraform:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+          
+      - name: Azure CLI script
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az account show
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.3
+
+      - name: Terraform Init
+        run: terraform init -upgrade
+
+      - name: Terraform Apply
+        run: terraform apply -var gitops_addons_org=https://github.com/sahma19 --auto-approve
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+
+      - name: Upload kubeconfig for later jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: terraform/kubeconfig
+
+  gitops:
+    name: 'GitOps Bootstrap'
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download kubeconfig
+        uses: actions/download-artifact@v4
+        with:
+          name: kubeconfig
+          path: ./terraform
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: '1.28.9'
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v2.10.7/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+
+      - name: Bootstrap ArgoCD Applications
+        run: |
+          export KUBECONFIG=./terraform/kubeconfig
+          kubectl apply -f terraform/bootstrap/addons.yaml
+
+      # Optionally, sync ArgoCD apps if needed
+      # - name: Sync ArgoCD Apps
+      #   run: |
+      #     argocd login <ARGOCD_SERVER> --username admin --password <ARGOCD_PASSWORD> --insecure
+      #     argocd app sync <APP_NAME>

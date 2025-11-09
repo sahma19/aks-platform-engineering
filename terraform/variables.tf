@@ -14,7 +14,7 @@ variable "github_token" {
 variable "location" {
   description = "Specifies the the location for the Azure resources."
   type        = string
-  default     = "eastus2"
+  default     = "westeurope"
 }
 
 variable "agents_size" {
@@ -238,5 +238,6 @@ variable "build_backstage" {
 variable "postgres_password" {
   description = "Password for the Backstage Postgres database"
   type        = string
-  default     = "secretPassword123!"
+  sensitive   = true
+  default     = ""
 }
